@@ -86,9 +86,11 @@ export const createHookProcessor = (deps: {
     return nextHooks;
   };
 
-  const installHooksInDirectory = (targetCwd: string) => {
-    const targetClaudeDir = join(targetCwd, ".claude");
-    const targetSettingsPath = join(targetClaudeDir, "settings.json");
+  const installHooksInDirectory = (targetCwd: string, provider: string = "claude-code") => {
+    // Use .openclaude for openclaude provider, .claude for claude-code
+    const providerDirName = provider === "openclaude" ? ".openclaude" : ".claude";
+    const targetSettingsDir = join(targetCwd, providerDirName);
+    const targetSettingsPath = join(targetSettingsDir, "settings.json");
     const apiBaseUrl = getApiBaseUrl();
 
     const hooksConfig = {
@@ -175,7 +177,7 @@ export const createHookProcessor = (deps: {
     };
 
     try {
-      mkdirSync(targetClaudeDir, { recursive: true });
+      mkdirSync(targetSettingsDir, { recursive: true });
       const existingSettings = existsSync(targetSettingsPath)
         ? parseSettingsObject(readFileSync(targetSettingsPath, "utf8"))
         : null;

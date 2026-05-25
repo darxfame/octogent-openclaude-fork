@@ -472,13 +472,13 @@ export const createTerminalRuntime = ({
       worktreeManager.createTentacleWorktree(effectiveWorktreeId, baseRef);
     }
 
-    if (terminal.agentProvider === "claude-code") {
-      // Claude hooks should only be installed for Claude-backed terminals.
+    if (terminal.agentProvider === "claude-code" || terminal.agentProvider === "openclaude") {
+      // Hooks should be installed for Claude Code and OpenClaude-backed terminals.
       try {
         const hookTargetCwd = shouldCreateWorktree
           ? worktreeManager.getTentacleWorkspaceCwd(effectiveWorktreeId)
           : workspaceCwd;
-        hookProcessor.installHooksInDirectory(hookTargetCwd);
+        hookProcessor.installHooksInDirectory(hookTargetCwd, terminal.agentProvider);
       } catch {
         // Best-effort: hook installation should not block terminal creation.
       }

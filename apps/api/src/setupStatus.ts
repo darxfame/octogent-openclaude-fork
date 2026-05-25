@@ -55,7 +55,7 @@ export const readWorkspaceSetupSnapshot = (
   const isClaudeVerified = Boolean(verifiedSteps["check-claude"]);
   const isGitVerified = Boolean(verifiedSteps["check-git"]);
   const isCurlVerified = Boolean(verifiedSteps["check-curl"]);
-  const hasClaudeCode = prerequisites.availability.claude;
+  const hasAgentCLI = prerequisites.availability.claude || prerequisites.availability.openclaude;
   const hasGit = prerequisites.availability.git;
   const hasCurl = prerequisites.availability.curl;
 
@@ -92,22 +92,22 @@ export const readWorkspaceSetupSnapshot = (
     },
     {
       id: "check-claude",
-      title: "Check Claude Code",
-      description: "Verify the default Claude Code workflow is available on this machine.",
-      complete: hasClaudeCode && isClaudeVerified,
+      title: "Check Agent CLI",
+      description: "Verify Claude Code or OpenClaude is available on this machine.",
+      complete: hasAgentCLI && isClaudeVerified,
       required: false,
-      actionLabel: "Check Claude Code",
-      statusText: hasClaudeCode
+      actionLabel: "Check Agent CLI",
+      statusText: hasAgentCLI
         ? isClaudeVerified
-          ? "Claude Code is available."
-          : "Confirm Claude Code before using the planner."
-        : "Claude Code is unavailable.",
-      guidance: hasClaudeCode
+          ? "Agent CLI is available."
+          : "Confirm agent CLI before using the planner."
+        : "No agent CLI available.",
+      guidance: hasAgentCLI
         ? isClaudeVerified
           ? null
-          : "Click to verify the Claude Code workflow on this machine."
-        : "Install Claude Code and log in before using the default Claude workflow.",
-      command: hasClaudeCode ? null : "claude login",
+          : "Click to verify the agent CLI on this machine."
+        : "Install Claude Code, OpenClaude, or Codex before using agent terminals.",
+      command: hasAgentCLI ? null : "claude login # or: openclaude",
     },
     {
       id: "check-git",
@@ -131,20 +131,20 @@ export const readWorkspaceSetupSnapshot = (
     {
       id: "check-curl",
       title: "Check curl",
-      description: "Verify curl is available for Claude hook callbacks.",
+      description: "Verify curl is available for agent hook callbacks.",
       complete: hasCurl && isCurlVerified,
       required: false,
       actionLabel: "Check curl",
       statusText: hasCurl
         ? isCurlVerified
           ? "curl is available."
-          : "Confirm curl before using Claude hook callbacks."
+          : "Confirm curl before using hook callbacks."
         : "curl is unavailable.",
       guidance: hasCurl
         ? isCurlVerified
           ? null
           : "Click to verify hook callback support on this machine."
-        : "Install curl to restore Claude hook callbacks.",
+        : "Install curl to restore agent hook callbacks.",
       command: hasCurl ? null : "curl --version",
     },
     {

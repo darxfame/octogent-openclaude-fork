@@ -10,7 +10,7 @@ export type StartupPrerequisiteIssue = {
 };
 
 export type StartupPrerequisiteAvailability = Record<
-  "claude" | "codex" | "git" | "gh" | "curl",
+  "claude" | "openclaude" | "codex" | "git" | "gh" | "curl",
   boolean
 >;
 
@@ -53,6 +53,7 @@ export const collectStartupPrerequisiteReport = (
 ): StartupPrerequisiteReport => {
   const availability: StartupPrerequisiteAvailability = {
     claude: isAvailable("claude"),
+    openclaude: isAvailable("openclaude"),
     codex: isAvailable("codex"),
     git: isAvailable("git"),
     gh: isAvailable("gh"),
@@ -62,13 +63,13 @@ export const collectStartupPrerequisiteReport = (
   const errors: StartupPrerequisiteIssue[] = [];
   const warnings: StartupPrerequisiteIssue[] = [];
 
-  if (!availability.claude && !availability.codex) {
+  if (!availability.claude && !availability.openclaude && !availability.codex) {
     errors.push({
-      command: "claude/codex",
+      command: "claude/openclaude/codex",
       severity: "error",
-      summary: "Neither `claude` nor `codex` is installed.",
+      summary: "No agent CLI is installed.",
       guidance:
-        "Install at least one agent CLI before starting Octogent. Claude-backed terminals use `claude`; Codex-backed terminals use `codex`.",
+        "Install at least one agent CLI before starting Octogent. Claude-backed terminals use `claude`, OpenClaude-backed terminals use `openclaude`, Codex-backed terminals use `codex`.",
     });
   } else {
     if (!availability.claude) {
@@ -77,7 +78,17 @@ export const collectStartupPrerequisiteReport = (
         severity: "warning",
         summary: "`claude` is not installed.",
         guidance:
-          "Claude-backed terminals are unavailable. Install Claude Code and run `claude login` if you want the default Claude provider.",
+          "Claude Code-backed terminals are unavailable. Install Claude Code and run `claude login` if needed.",
+      });
+    }
+
+    if (!availability.openclaude) {
+      warnings.push({
+        command: "openclaude",
+        severity: "warning",
+        summary: "`openclaude` is not installed.",
+        guidance:
+          "OpenClaude-backed terminals are unavailable. Install OpenClaude for an open-source alternative.",
       });
     }
 

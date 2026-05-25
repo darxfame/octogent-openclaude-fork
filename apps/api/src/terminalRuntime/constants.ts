@@ -4,11 +4,12 @@ export const TERMINAL_REGISTRY_RELATIVE_PATH = ".octogent/state/tentacles.json";
 export const TERMINAL_TRANSCRIPT_RELATIVE_PATH = ".octogent/state/transcripts";
 export const TENTACLE_WORKTREE_RELATIVE_PATH = ".octogent/worktrees";
 export const TENTACLE_WORKTREE_BRANCH_PREFIX = "octogent/";
-export const DEFAULT_AGENT_PROVIDER = "claude-code" as const;
+export const DEFAULT_AGENT_PROVIDER = "openclaude" as const;
 
 export const TERMINAL_BOOTSTRAP_COMMANDS: Record<string, string> = {
   codex: "codex",
   "claude-code": "claude",
+  openclaude: "openclaude",
 };
 export const TERMINAL_SESSION_IDLE_GRACE_MS = 5 * 60 * 1000;
 export const TERMINAL_SCROLLBACK_MAX_BYTES = 512 * 1024;
