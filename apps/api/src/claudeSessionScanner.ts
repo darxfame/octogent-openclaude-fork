@@ -2,7 +2,9 @@ import { readFile, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const CLAUDE_PROJECTS_DIR = join(homedir(), ".claude", "projects");
+import { getProjectsDir } from "@octogent/core";
+
+const getClaudeProjectsDir = () => getProjectsDir("claude-code", () => homedir());
 
 export type UsageSlice = {
   key: string;
@@ -189,17 +191,17 @@ export const scanClaudeUsageChart = async (
 
   if (scope === "project" && projectSlug) {
     const label = slugToLabel(projectSlug);
-    await scanProjectDirectory(join(CLAUDE_PROJECTS_DIR, projectSlug), label, buckets);
+    await scanProjectDirectory(join(getClaudeProjectsDir(), projectSlug), label, buckets);
   } else {
     let projectDirs: string[];
     try {
-      projectDirs = await readdir(CLAUDE_PROJECTS_DIR);
+      projectDirs = await readdir(getClaudeProjectsDir());
     } catch {
       projectDirs = [];
     }
     await Promise.all(
       projectDirs.map((dir) =>
-        scanProjectDirectory(join(CLAUDE_PROJECTS_DIR, dir), slugToLabel(dir), buckets),
+        scanProjectDirectory(join(getClaudeProjectsDir(), dir), slugToLabel(dir), buckets),
       ),
     );
   }

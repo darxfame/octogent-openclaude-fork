@@ -54,6 +54,16 @@ export const AGENT_PROVIDERS: Record<TerminalAgentProvider, AgentProviderConfig>
     settingsFileName: "settings.json",
     turnsFileExtension: ".openclaude-turns.json",
   },
+  codex: {
+    id: "codex",
+    displayName: "Codex",
+    binaryName: "codex",
+    configHome: "~/.codex",
+    projectsDir: "~/.codex/projects",
+    skillsDir: ".codex/skills",
+    settingsFileName: "settings.json",
+    turnsFileExtension: ".codex-turns.json",
+  },
 };
 
 /**
@@ -65,10 +75,11 @@ export function getProviderConfig(provider: TerminalAgentProvider): AgentProvide
 
 /**
  * Expand ~ in path to home directory
+ * Uses Node.js os.homedir() - call site should polyfill for non-Node environments
  */
-export function expandPath(path: string): string {
+export function expandPath(path: string, homedir: () => string): string {
   if (path.startsWith("~/")) {
-    return path.replace("~", Deno.homedir());
+    return path.replace("~", homedir());
   }
   return path;
 }
@@ -76,15 +87,15 @@ export function expandPath(path: string): string {
 /**
  * Get expanded config home for provider
  */
-export function getConfigHome(provider: TerminalAgentProvider): string {
-  return expandPath(getProviderConfig(provider).configHome);
+export function getConfigHome(provider: TerminalAgentProvider, homedir: () => string): string {
+  return expandPath(getProviderConfig(provider).configHome, homedir);
 }
 
 /**
  * Get expanded projects directory for provider
  */
-export function getProjectsDir(provider: TerminalAgentProvider): string {
-  return expandPath(getProviderConfig(provider).projectsDir);
+export function getProjectsDir(provider: TerminalAgentProvider, homedir: () => string): string {
+  return expandPath(getProviderConfig(provider).projectsDir, homedir);
 }
 
 /**

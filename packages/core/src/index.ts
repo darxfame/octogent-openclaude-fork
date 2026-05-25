@@ -12,4 +12,5 @@ export * from "./domain/setup";
 export * from "./domain/uiState";
 export * from "./domain/usage";
 export * from "./ports/TerminalSnapshotReader";
+export * from "./providers";
 export * from "./util/typeCoercion";

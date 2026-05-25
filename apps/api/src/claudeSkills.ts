@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
 import type { DeckAvailableSkill } from "@octogent/core";
+import { getSkillsDir } from "@octogent/core";
 
 const SKILL_MARKER_START = "<!-- octogent:suggested-skills:start -->";
 const SKILL_MARKER_END = "<!-- octogent:suggested-skills:end -->";
@@ -95,10 +96,26 @@ const listSkillDefinitionFiles = (skillsRoot: string): string[] => {
   return definitions;
 };
 
-export const readAvailableClaudeSkills = (workspaceCwd: string): DeckAvailableSkill[] => {
-  const roots: Array<{ path: string; source: DeckAvailableSkill["source"] }> = [
-    { path: join(workspaceCwd, ".claude", "skills"), source: "project" },
-  ];
+/**
+ * Read available skills from provider-specific directories
+ * Supports both Claude Code (.claude/skills) and OpenClaude (.openclaude/skills)
+ * Defaults to scanning both provider directories for backwards compatibility
+ */
+export const readAvailableClaudeSkills = (
+  workspaceCwd: string,
+  provider?: "claude-code" | "openclaude",
+): DeckAvailableSkill[] => {
+  const roots: Array<{ path: string; source: DeckAvailableSkill["source"] }> = [];
+
+  if (provider) {
+    // Scan specific provider directory
+    const skillsDirName = getSkillsDir(provider);
+    roots.push({ path: join(workspaceCwd, skillsDirName), source: "project" });
+  } else {
+    // Scan both provider directories for backwards compatibility
+    roots.push({ path: join(workspaceCwd, ".claude", "skills"), source: "project" });
+    roots.push({ path: join(workspaceCwd, ".openclaude", "skills"), source: "project" });
+  }
 
   const seen = new Map<string, DeckAvailableSkill>();
 
