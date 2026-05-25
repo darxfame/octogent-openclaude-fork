@@ -1,0 +1,1 @@
+{"version":3,"file":"AgentStateBadge.d.ts","sourceRoot":"","sources":["AgentStateBadge.tsx"],"names":[],"mappings":"AAAA,OAAO,EAAE,KAAK,iBAAiB,EAAuB,MAAM,gBAAgB,CAAC;AAG7E,YAAY,EAAE,iBAAiB,EAAE,MAAM,gBAAgB,CAAC;AACxD,OAAO,EAAE,mBAAmB,EAAE,MAAM,gBAAgB,CAAC;AAErD,KAAK,oBAAoB,GAAG;IAC1B,KAAK,EAAE,iBAAiB,CAAC;CAC1B,CAAC;AAuBF,eAAO,MAAM,eAAe,GAAI,WAAW,oBAAoB,gCAe9D,CAAC"}

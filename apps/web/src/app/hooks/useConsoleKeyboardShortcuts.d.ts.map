@@ -1,0 +1,1 @@
+{"version":3,"file":"useConsoleKeyboardShortcuts.d.ts","sourceRoot":"","sources":["useConsoleKeyboardShortcuts.ts"],"names":[],"mappings":"AAEA,OAAO,KAAK,EAAE,eAAe,EAAE,MAAM,cAAc,CAAC;AAGpD,KAAK,kCAAkC,GAAG;IACxC,mBAAmB,EAAE,CAAC,KAAK,EAAE,eAAe,KAAK,IAAI,CAAC;CACvD,CAAC;AAEF,eAAO,MAAM,2BAA2B,GAAI,0BAEzC,kCAAkC,SAmBpC,CAAC"}

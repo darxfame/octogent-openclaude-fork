@@ -1,0 +1,1 @@
+{"version":3,"file":"PromptsPrimaryView.d.ts","sourceRoot":"","sources":["PromptsPrimaryView.tsx"],"names":[],"mappings":"AAAA,OAAO,EAAE,KAAK,SAAS,EAAoC,MAAM,OAAO,CAAC;AAQzE,KAAK,uBAAuB,GAAG;IAC7B,OAAO,EAAE,OAAO,CAAC;IACjB,gBAAgB,CAAC,EAAE,CAAC,OAAO,EAAE,SAAS,KAAK,IAAI,CAAC;CACjD,CAAC;AAMF,eAAO,MAAM,kBAAkB,GAAI,+BAA+B,uBAAuB,gCAiOxF,CAAC"}

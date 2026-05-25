@@ -1,0 +1,1 @@
+{"version":3,"file":"UsageHeatmap.d.ts","sourceRoot":"","sources":["UsageHeatmap.tsx"],"names":[],"mappings":"AAEA,OAAO,KAAK,EAAE,cAAc,EAAiB,MAAM,qCAAqC,CAAC;AAGzF,KAAK,sBAAsB,GAAG;IAC5B,IAAI,EAAE,cAAc,GAAG,IAAI,CAAC;IAC5B,SAAS,EAAE,OAAO,CAAC;IACnB,SAAS,EAAE,MAAM,IAAI,CAAC;CACvB,CAAC;AAyfF,eAAO,MAAM,aAAa,GAAI,gCAAgC,sBAAsB,gCA2LnF,CAAC"}

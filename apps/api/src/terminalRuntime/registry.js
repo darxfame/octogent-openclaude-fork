@@ -1,0 +1,342 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+import { TERMINAL_REGISTRY_VERSION } from "./constants";
+import { toErrorMessage } from "./systemClients";
+import { isTerminalAgentProvider, isTerminalCompletionSoundId } from "./types";
+const REGISTRY_PERSIST_DEBOUNCE_MS = 100;
+const isRecord = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+const isTerminalNameOrigin = (value) => value === "generated" || value === "user" || value === "prompt";
+const isTerminalLifecycleState = (value) => value === "registered" ||
+    value === "running" ||
+    value === "stopped" ||
+    value === "exited" ||
+    value === "stale";
+const inferTerminalNameOrigin = (terminalId, tentacleName) => {
+    if (tentacleName === terminalId || /^Octogent Terminal \d+$/.test(tentacleName)) {
+        return "generated";
+    }
+    return "user";
+};
+const parsePersistedUiState = (value) => {
+    if (!isRecord(value)) {
+        return {};
+    }
+    const nextState = {};
+    if (typeof value.isAgentsSidebarVisible === "boolean") {
+        nextState.isAgentsSidebarVisible = value.isAgentsSidebarVisible;
+    }
+    if (typeof value.sidebarWidth === "number" && Number.isFinite(value.sidebarWidth)) {
+        nextState.sidebarWidth = value.sidebarWidth;
+    }
+    if (typeof value.isActiveAgentsSectionExpanded === "boolean") {
+        nextState.isActiveAgentsSectionExpanded = value.isActiveAgentsSectionExpanded;
+    }
+    if (typeof value.isRuntimeStatusStripVisible === "boolean") {
+        nextState.isRuntimeStatusStripVisible = value.isRuntimeStatusStripVisible;
+    }
+    if (typeof value.isMonitorVisible === "boolean") {
+        nextState.isMonitorVisible = value.isMonitorVisible;
+    }
+    if (typeof value.isBottomTelemetryVisible === "boolean") {
+        nextState.isBottomTelemetryVisible = value.isBottomTelemetryVisible;
+    }
+    if (typeof value.isCodexUsageVisible === "boolean") {
+        nextState.isCodexUsageVisible = value.isCodexUsageVisible;
+    }
+    if (typeof value.isClaudeUsageVisible === "boolean") {
+        nextState.isClaudeUsageVisible = value.isClaudeUsageVisible;
+    }
+    if (typeof value.isClaudeUsageSectionExpanded === "boolean") {
+        nextState.isClaudeUsageSectionExpanded = value.isClaudeUsageSectionExpanded;
+    }
+    if (typeof value.isCodexUsageSectionExpanded === "boolean") {
+        nextState.isCodexUsageSectionExpanded = value.isCodexUsageSectionExpanded;
+    }
+    const completionSoundValue = value.terminalCompletionSound;
+    if (isTerminalCompletionSoundId(completionSoundValue)) {
+        nextState.terminalCompletionSound = completionSoundValue;
+    }
+    const minimizedIds = value.minimizedTerminalIds;
+    if (Array.isArray(minimizedIds)) {
+        const ids = minimizedIds.filter((id) => typeof id === "string");
+        nextState.minimizedTerminalIds = [...new Set(ids)];
+    }
+    const widths = value.terminalWidths;
+    if (isRecord(widths)) {
+        const terminalWidths = Object.entries(widths).reduce((acc, [id, width]) => {
+            if (typeof width === "number" && Number.isFinite(width)) {
+                acc[id] = width;
+            }
+            return acc;
+        }, {});
+        nextState.terminalWidths = terminalWidths;
+    }
+    if (Array.isArray(value.canvasOpenTerminalIds)) {
+        nextState.canvasOpenTerminalIds = value.canvasOpenTerminalIds.filter((id) => typeof id === "string");
+    }
+    if (Array.isArray(value.canvasOpenTentacleIds)) {
+        nextState.canvasOpenTentacleIds = value.canvasOpenTentacleIds.filter((id) => typeof id === "string");
+    }
+    if (typeof value.canvasTerminalsPanelWidth === "number" &&
+        Number.isFinite(value.canvasTerminalsPanelWidth)) {
+        nextState.canvasTerminalsPanelWidth = value.canvasTerminalsPanelWidth;
+    }
+    return nextState;
+};
+export const pruneUiStateTerminalReferences = (uiState, terminals) => {
+    const activeTerminalIds = new Set(terminals.keys());
+    const nextState = {
+        ...uiState,
+    };
+    if (nextState.minimizedTerminalIds) {
+        nextState.minimizedTerminalIds = nextState.minimizedTerminalIds.filter((id) => activeTerminalIds.has(id));
+    }
+    if (nextState.terminalWidths) {
+        nextState.terminalWidths = Object.entries(nextState.terminalWidths).reduce((acc, [id, width]) => {
+            if (activeTerminalIds.has(id)) {
+                acc[id] = width;
+            }
+            return acc;
+        }, {});
+    }
+    return nextState;
+};
+/**
+ * Migrate a v1/v2 registry document to v3 terminal format.
+ * Each old tentacle entry becomes a terminal where terminalId = tentacleId.
+ * Child agents are dropped.
+ */
+const migrateV2ToV3 = (record, registryPath) => {
+    const rawTentacles = record.tentacles;
+    if (!Array.isArray(rawTentacles)) {
+        throw new Error(`Invalid registry tentacles array (${registryPath}).`);
+    }
+    const terminals = new Map();
+    for (const item of rawTentacles) {
+        if (item === null || typeof item !== "object") {
+            throw new Error(`Invalid tentacle entry in registry (${registryPath}).`);
+        }
+        const entry = item;
+        const tentacleId = typeof entry.tentacleId === "string" ? entry.tentacleId : null;
+        const tentacleName = typeof entry.tentacleName === "string" ? entry.tentacleName : null;
+        const createdAt = typeof entry.createdAt === "string" ? entry.createdAt : null;
+        if (!tentacleId || !tentacleName || !createdAt) {
+            throw new Error(`Incomplete tentacle entry in registry (${registryPath}).`);
+        }
+        const rawWorkspaceMode = entry.workspaceMode;
+        const workspaceMode = rawWorkspaceMode === "worktree" || rawWorkspaceMode === "shared"
+            ? rawWorkspaceMode
+            : "shared";
+        if (terminals.has(tentacleId)) {
+            throw new Error(`Duplicate tentacle id in registry (${registryPath}): ${tentacleId}`);
+        }
+        terminals.set(tentacleId, {
+            terminalId: tentacleId,
+            tentacleId,
+            tentacleName,
+            nameOrigin: inferTerminalNameOrigin(tentacleId, tentacleName),
+            createdAt,
+            workspaceMode,
+        });
+    }
+    return terminals;
+};
+const parseV3Terminals = (record, registryPath) => {
+    const rawTerminals = record.terminals;
+    if (!Array.isArray(rawTerminals)) {
+        throw new Error(`Invalid registry terminals array (${registryPath}).`);
+    }
+    const terminals = new Map();
+    for (const item of rawTerminals) {
+        if (item === null || typeof item !== "object") {
+            throw new Error(`Invalid terminal entry in registry (${registryPath}).`);
+        }
+        const entry = item;
+        const terminalId = typeof entry.terminalId === "string" ? entry.terminalId : null;
+        const tentacleId = typeof entry.tentacleId === "string" ? entry.tentacleId : null;
+        const tentacleName = typeof entry.tentacleName === "string" ? entry.tentacleName : null;
+        const createdAt = typeof entry.createdAt === "string" ? entry.createdAt : null;
+        if (!terminalId || !tentacleId || !tentacleName || !createdAt) {
+            throw new Error(`Incomplete terminal entry in registry (${registryPath}).`);
+        }
+        const rawWorkspaceMode = entry.workspaceMode;
+        const workspaceMode = rawWorkspaceMode === "worktree" || rawWorkspaceMode === "shared"
+            ? rawWorkspaceMode
+            : "shared";
+        if (terminals.has(terminalId)) {
+            throw new Error(`Duplicate terminal id in registry (${registryPath}): ${terminalId}`);
+        }
+        const terminal = {
+            terminalId,
+            tentacleId,
+            tentacleName,
+            nameOrigin: isTerminalNameOrigin(entry.nameOrigin)
+                ? entry.nameOrigin
+                : inferTerminalNameOrigin(terminalId, tentacleName),
+            createdAt,
+            workspaceMode,
+        };
+        if (typeof entry.worktreeId === "string")
+            terminal.worktreeId = entry.worktreeId;
+        if (typeof entry.parentTerminalId === "string")
+            terminal.parentTerminalId = entry.parentTerminalId;
+        if (isTerminalAgentProvider(entry.agentProvider))
+            terminal.agentProvider = entry.agentProvider;
+        if (typeof entry.initialPrompt === "string")
+            terminal.initialPrompt = entry.initialPrompt;
+        if (typeof entry.initialInputDraft === "string") {
+            terminal.initialInputDraft = entry.initialInputDraft;
+        }
+        if (typeof entry.autoRenamePromptContext === "string") {
+            terminal.autoRenamePromptContext = entry.autoRenamePromptContext;
+        }
+        if (typeof entry.lastActiveAt === "string")
+            terminal.lastActiveAt = entry.lastActiveAt;
+        if (isTerminalLifecycleState(entry.lifecycleState)) {
+            terminal.lifecycleState = entry.lifecycleState;
+        }
+        if (typeof entry.lifecycleReason === "string") {
+            terminal.lifecycleReason = entry.lifecycleReason;
+        }
+        if (typeof entry.lifecycleUpdatedAt === "string") {
+            terminal.lifecycleUpdatedAt = entry.lifecycleUpdatedAt;
+        }
+        if (typeof entry.processId === "number" &&
+            Number.isInteger(entry.processId) &&
+            entry.processId > 0) {
+            terminal.processId = entry.processId;
+        }
+        if (typeof entry.startedAt === "string")
+            terminal.startedAt = entry.startedAt;
+        if (typeof entry.endedAt === "string")
+            terminal.endedAt = entry.endedAt;
+        if (typeof entry.exitCode === "number" && Number.isFinite(entry.exitCode)) {
+            terminal.exitCode = entry.exitCode;
+        }
+        if ((typeof entry.exitSignal === "number" && Number.isFinite(entry.exitSignal)) ||
+            typeof entry.exitSignal === "string") {
+            terminal.exitSignal = entry.exitSignal;
+        }
+        terminals.set(terminalId, terminal);
+    }
+    return terminals;
+};
+const parseRegistryDocument = (raw, registryPath) => {
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    }
+    catch (error) {
+        throw new Error(`Invalid terminal registry JSON (${registryPath}): ${toErrorMessage(error)}`);
+    }
+    if (parsed === null || typeof parsed !== "object") {
+        throw new Error(`Invalid terminal registry shape (${registryPath}).`);
+    }
+    const record = parsed;
+    const version = record.version;
+    if (version !== 1 && version !== 2 && version !== TERMINAL_REGISTRY_VERSION) {
+        throw new Error(`Unsupported terminal registry version in ${registryPath}: ${String(version)}`);
+    }
+    const terminals = version === 1 || version === 2
+        ? migrateV2ToV3(record, registryPath)
+        : parseV3Terminals(record, registryPath);
+    return {
+        terminals,
+        uiState: pruneUiStateTerminalReferences(parsePersistedUiState(record.uiState), terminals),
+    };
+};
+export const loadTerminalRegistry = (registryPath) => {
+    if (!existsSync(registryPath)) {
+        return {
+            terminals: new Map(),
+            uiState: {},
+        };
+    }
+    const raw = readFileSync(registryPath, "utf8");
+    return parseRegistryDocument(raw, registryPath);
+};
+const serializeTerminalRegistry = (state) => {
+    const document = {
+        version: TERMINAL_REGISTRY_VERSION,
+        terminals: [...state.terminals.values()],
+        uiState: state.uiState,
+    };
+    return `${JSON.stringify(document, null, 2)}\n`;
+};
+const writeSerializedRegistrySync = (registryPath, serialized) => {
+    mkdirSync(dirname(registryPath), { recursive: true });
+    writeFileSync(registryPath, serialized, "utf8");
+};
+const writeSerializedRegistry = async (registryPath, serialized) => {
+    mkdirSync(dirname(registryPath), { recursive: true });
+    await writeFile(registryPath, serialized, "utf8");
+};
+export const persistTerminalRegistry = (registryPath, state) => {
+    writeSerializedRegistrySync(registryPath, serializeTerminalRegistry(state));
+};
+export const createTerminalRegistryPersistence = (registryPath) => {
+    let pendingSerialized = null;
+    let debounceTimer = null;
+    let writeLoopPromise = null;
+    let lastPersistedSerialized = null;
+    const runWriteLoop = () => {
+        if (writeLoopPromise) {
+            return writeLoopPromise;
+        }
+        if (pendingSerialized === null) {
+            return Promise.resolve();
+        }
+        writeLoopPromise = (async () => {
+            while (pendingSerialized !== null) {
+                const serialized = pendingSerialized;
+                pendingSerialized = null;
+                try {
+                    await writeSerializedRegistry(registryPath, serialized);
+                    lastPersistedSerialized = serialized;
+                }
+                catch (error) {
+                    console.warn("[terminal-registry] Failed to persist registry:", error);
+                }
+            }
+        })().finally(() => {
+            writeLoopPromise = null;
+            if (pendingSerialized !== null) {
+                void runWriteLoop();
+            }
+        });
+        return writeLoopPromise;
+    };
+    const clearDebounceTimer = () => {
+        if (debounceTimer !== null) {
+            clearTimeout(debounceTimer);
+            debounceTimer = null;
+        }
+    };
+    const flush = async () => {
+        clearDebounceTimer();
+        await runWriteLoop();
+    };
+    return {
+        schedulePersist(state) {
+            const serialized = serializeTerminalRegistry(state);
+            if (serialized === pendingSerialized ||
+                (pendingSerialized === null &&
+                    writeLoopPromise === null &&
+                    serialized === lastPersistedSerialized)) {
+                return;
+            }
+            pendingSerialized = serialized;
+            clearDebounceTimer();
+            debounceTimer = setTimeout(() => {
+                debounceTimer = null;
+                void runWriteLoop();
+            }, REGISTRY_PERSIST_DEBOUNCE_MS);
+        },
+        flush,
+        async close() {
+            await flush();
+        },
+    };
+};
+//# sourceMappingURL=registry.js.map
