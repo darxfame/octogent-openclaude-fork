@@ -46,6 +46,7 @@ type ClaudeUsageDependencies = {
   spawnCliUsage?: () => Promise<string | null>;
   projectStateDir?: string;
   backgroundRefreshOnly?: boolean;
+  provider?: "claude-code" | "openclaude";
 };
 
 const unavailableSnapshot = (
@@ -877,6 +878,16 @@ export const readClaudeUsageSnapshot = async (
 ): Promise<ClaudeUsageSnapshot> => {
   const now = dependencies.now?.() ?? new Date();
   const backgroundRefreshOnly = dependencies.backgroundRefreshOnly ?? false;
+  const provider = dependencies.provider ?? "claude-code";
+
+  // OpenClaude uses local proxy - usage tracking needs different implementation
+  if (provider === "openclaude") {
+    return unavailableSnapshot(
+      now,
+      "OpenClaude uses local proxy. Usage tracking coming soon.",
+      "unavailable",
+    );
+  }
 
   // Return cached snapshot if fresh enough (prevents rate-limit storms)
   if (cachedSnapshot && Date.now() - cachedSnapshot.fetchedAt < CACHE_TTL_MS) {
