@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { logVerbose } from "../logging";
-import { parseClaudeTranscript } from "./claudeTranscript";
+import { parseClaudeTranscript } from "./transcriptParser";
 import { storeClaudeTranscriptTurns } from "./conversations";
 import { broadcastMessage } from "./protocol";
 import type { PersistedTerminal, TerminalSession } from "./types";
@@ -364,8 +364,12 @@ export const createHookProcessor = (deps: {
     }
 
     logVerbose(`[Hook] Matched session: ${matchedSessionId}, parsing transcript...`);
-    const turns = parseClaudeTranscript(transcriptPath);
-    logVerbose(`[Hook] Parsed ${turns?.length ?? 0} turns from transcript.`);
+
+    // Get provider from terminal for transcript parsing
+    const terminal = terminals.get(matchedSessionId);
+    const provider = terminal?.agentProvider ?? "claude-code";
+    const turns = parseClaudeTranscript(transcriptPath, provider);
+    logVerbose(`[Hook] Parsed ${turns?.length ?? 0} turns from transcript (provider: ${provider}).`);
 
     const lastAssistantMessage =
       typeof hookPayload.last_assistant_message === "string"
