@@ -1,0 +1,62 @@
+import type { IncomingMessage } from "node:http";
+import type { Duplex } from "node:stream";
+import type { TerminalSnapshot } from "@octogent/core";
+import type { DirectSessionListener } from "./terminalRuntime/types";
+import { type CreateTerminalRuntimeOptions, type PersistedUiState, type TentacleWorkspaceMode, type TerminalAgentProvider, type TerminalNameOrigin } from "./terminalRuntime/types";
+export type { GitClient, PersistedUiState, TerminalAgentProvider, TerminalNameOrigin, TentacleWorkspaceMode, } from "./terminalRuntime/types";
+export { isTerminalAgentProvider, isTerminalCompletionSoundId } from "./terminalRuntime/types";
+export { RuntimeInputError } from "./terminalRuntime/types";
+export declare const MAX_CHILDREN_PER_PARENT = 9;
+export declare const createTerminalRuntime: ({ workspaceCwd, projectStateDir, gitClient, getApiBaseUrl, maxConcurrentSessions, }: CreateTerminalRuntimeOptions) => {
+    handleHook: (hookName: string, payload: unknown, octogentSessionId?: string) => {
+        ok: boolean;
+    };
+    handleUpgrade(request: IncomingMessage, socket: Duplex, head: Buffer): boolean;
+    connectDirect(terminalId: string, listener: DirectSessionListener): (() => void) | null;
+    writeInput(terminalId: string, data: string): boolean;
+    resizeTerminal(terminalId: string, cols: number, rows: number): boolean;
+    close(): Promise<void>;
+    sendChannelMessage(toTerminalId: string, fromTerminalId: string, content: string): TerminalSnapshot | null;
+    listChannelMessages(terminalId: string): TerminalSnapshot[];
+    deliverChannelMessages: (terminalId: string) => number;
+    createTerminal: ({ terminalId: requestedTerminalId, tentacleId: requestedTentacleId, worktreeId: requestedWorktreeId, tentacleName, workspaceMode, agentProvider, initialPrompt, initialInputDraft, baseRef, parentTerminalId, nameOrigin, autoRenamePromptContext, }: {
+        terminalId?: string;
+        tentacleId?: string;
+        worktreeId?: string;
+        tentacleName?: string;
+        workspaceMode?: TentacleWorkspaceMode;
+        agentProvider?: TerminalAgentProvider;
+        initialPrompt?: string;
+        initialInputDraft?: string;
+        baseRef?: string;
+        parentTerminalId?: string;
+        nameOrigin?: TerminalNameOrigin;
+        autoRenamePromptContext?: string;
+    }) => TerminalSnapshot;
+    renameTerminal(terminalId: string, tentacleName: string): TerminalSnapshot | null;
+    stopTerminal(terminalId: string): TerminalSnapshot | null;
+    killTerminal(terminalId: string): TerminalSnapshot | null;
+    pruneTerminals(): string[];
+    deleteTerminal(terminalId: string): boolean;
+    readTentacleGitStatus(tentacleId: string): TerminalSnapshot | null;
+    commitTentacleWorktree(tentacleId: string, message: string): TerminalSnapshot | null;
+    pushTentacleWorktree(tentacleId: string): TerminalSnapshot | null;
+    syncTentacleWorktree(tentacleId: string, baseRef?: string): TerminalSnapshot | null;
+    readTentaclePullRequest(tentacleId: string): TerminalSnapshot | null;
+    createTentaclePullRequest(tentacleId: string, input: {
+        title: string;
+        body?: string;
+        baseRef?: string;
+    }): TerminalSnapshot | null;
+    mergeTentaclePullRequest(tentacleId: string): TerminalSnapshot | null;
+    listTerminalSnapshots(): TerminalSnapshot[];
+    listConversationSessions(): ConversationSessionSummary[];
+    readConversationSession(sessionId: string): any;
+    exportConversationSession(sessionId: string, format: "json" | "md"): string | null;
+    deleteConversationSession(sessionId: string): void;
+    deleteAllConversationSessions(): void;
+    searchConversations(query: string): ConversationSearchResult;
+    readUiState: () => PersistedUiState;
+    patchUiState(patch: PersistedUiState): PersistedUiState;
+};
+//# sourceMappingURL=terminalRuntime.d.ts.map

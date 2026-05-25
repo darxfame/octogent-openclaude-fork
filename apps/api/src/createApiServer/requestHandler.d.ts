@@ -1,0 +1,31 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+import type { UsageChartResponse } from "../claudeSessionScanner";
+import type { ClaudeUsageSnapshot } from "../claudeUsage";
+import type { CodeIntelStore } from "../codeIntelStore";
+import type { CodexUsageSnapshot } from "../codexUsage";
+import type { GitHubRepoSummarySnapshot } from "../githubRepoSummary";
+import type { MonitorService } from "../monitor";
+import type { TerminalRuntime } from "./routeHelpers";
+type CreateApiRequestHandlerOptions = {
+    runtime: TerminalRuntime;
+    workspaceCwd: string;
+    projectStateDir: string;
+    promptsDir: string;
+    userPromptsDir: string;
+    webDistDir?: string | undefined;
+    getApiBaseUrl: () => string;
+    getApiPort: () => string;
+    readClaudeUsageSnapshot: () => Promise<ClaudeUsageSnapshot>;
+    readClaudeOauthUsageSnapshot: () => Promise<ClaudeUsageSnapshot>;
+    readClaudeCliUsageSnapshot: () => Promise<ClaudeUsageSnapshot>;
+    readCodexUsageSnapshot: () => Promise<CodexUsageSnapshot>;
+    readGithubRepoSummary: () => Promise<GitHubRepoSummarySnapshot>;
+    scanUsageHeatmap: (scope: "all" | "project") => Promise<UsageChartResponse>;
+    monitorService: MonitorService;
+    invalidateClaudeUsageCache: () => void;
+    codeIntelStore: CodeIntelStore;
+    allowRemoteAccess: boolean;
+};
+export declare const createApiRequestHandler: ({ runtime, workspaceCwd, projectStateDir, promptsDir, userPromptsDir, webDistDir, getApiBaseUrl, getApiPort, readClaudeUsageSnapshot, readClaudeOauthUsageSnapshot, readClaudeCliUsageSnapshot, readCodexUsageSnapshot, readGithubRepoSummary, scanUsageHeatmap, monitorService, invalidateClaudeUsageCache, codeIntelStore, allowRemoteAccess, }: CreateApiRequestHandlerOptions) => (request: IncomingMessage, response: ServerResponse) => Promise<void>;
+export {};
+//# sourceMappingURL=requestHandler.d.ts.map
